@@ -1,0 +1,181 @@
+
+---
+title: "Midterm Project: dygraphs"
+author: "Emma Seiberlich, Chloe Dearman, Libby Browder"
+output: 
+  html_document:
+    toc: TRUE
+    theme: united
+    toc_float: TRUE
+editor_options: 
+  chunk_output_type: console
+indent: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library('dygraphs') #load package
+library(tidyverse)
+library(prettydoc)
+library(xts)
+#install.packages("highcharter")
+library(forecast)
+library(highcharter)
+```
+
+
+## Package Overview
+
+The general purpose of dygraphs is to provide an easy-to-use tool to create robust and detailed time-series charts. Using dygraphs allows the user to create interactive time series visualizations and offers interactive features for its viewers. It can conveniently be used in  conjunction with the the typical R console, R markdown, and Shiny applications.  These functions include interactive time series plots, point highlighting, zoom/pan features, and more.  What is also super interesting about this package is that it has adjusted compatibility for mobile and touchscreen devices, as you can pinch to zoom in and out!\
+
+By using a fully interactive web interface, we are able to include all data and data points without permanently crowding the visualization. The various zoom options allow opportunities to include a large amount of data so the user can view the data with any amount of precision they want. For example, if a user is seeking the data values from a specific date, they just need to hover over this date for the values to show up. 
+
+### Background information 
+
+Dygraphs was originally created in 2006 as a Javascript charting library by Dan Vanderkam to serve his team's internal dashboard at Google. He continued to develop Dygraphs and in 2013 he moved dygraphs to a controlled R release with version 1.0.0. The most recent release was in July of 2018 and is maintained by Petr Shevtsov. For the package to work properly, it is recommended to install the htmlwidgets package as well. Additionally, the main functions will only take in an xts (extensible time-series) compatible time-series object. To convert raw time series data into an xts object, you can use the function as.xts() from the xts library. 
+
+R’s dygraphs was created as the interface to the original dygraphs charting library in JavaScript. This package can be used within the R console, R markdown, and Shiny applications. This package facilitates easy data exploration by offering these interactive features so team members or stakeholders can visualize and better contextualize the information. 
+
+
+## Examples of Usage
+
+For our examples, we'll be utilizing the 'Seatbelts' package that's built into R to demonstrate dygraphs functions. This package includes monthly data about vehicle injuries in Great Britain from January 1969 to December 1984. Since the data can be typified as a time series and there are multiple variables suitable for comparison, this data is fit for dygraphs usage. 
+
+
+### Preliminary example: dygraph()
+The primary function in dygraphs is dygraph(). A great deal of the other functions in dygraphs simply serve as additions or modifications to dygraph().\
+To demonstrate the ease with which you can use dygraphs, Here is dygraph() with two columns from Seatbelts (front and rear, indicating injuries sustained in the front row or back rows) as its inputs:
+```{r}
+seatbelts=as.xts(Seatbelts)
+seatbelts1<- cbind(seatbelts$front,seatbelts$rear)
+dygraph(seatbelts1, main="Monthly Injuries/Deaths by Passenger Row") 
+```
+After coercing the data into an xts object, the only arguments here are the data and a title (using 'main='). Without much work, we have a functional, interactive, and easy-to-read time series plot with our variables of interest distinguished by color. As the cursor moves along the plot, its data values are shown in the top right.
+
+### dyRangeSelector, dyLimit, & dyEvent functions:
+This example builds upon the prior example. dyRangeSelector allows the user to zoom in, then double-click to return to the full data. dyLimit, which marks a horizontal point, is included here as well.\
+Also shown is the similar dyEvent() function which marks a vertical point. In time series, this is helpful because you are able to note events that may or may not change the data trend going forward. In this example, the Event line signifies when wearing a seat belt became compulsory in Great Britain.\
+Though the added range selector allows the user to zoom in, any dygraphs chart also automatically allows the viewer to zoom by clicking & dragging your mouse. If you'd like to pan from a zoomed view, just shift + drag your mouse. 
+```{r, echo=FALSE}
+dygraph(seatbelts1, main="Monthly Injuries/Deaths by Passenger Row") %>%
+  dyAxis('y',label='Deaths or Serious Injuries') %>%
+  dyAxis('x',label='Time', drawGrid = FALSE)%>%
+  dyRangeSelector()%>% #Range selector-- allows user to zoom in.. Double click to return to full-page.
+  dyLimit(450, color = "red")%>% #add limit line
+  dyEvent('1983-2-01', "Law introduced  ", labelLoc = 'top', color='blue')#add event line in blue
+```
+
+### dyHighlight & dyOptions
+  Here is another Seatbelts plot, showing the number of drivers killed each month. To demonstrate some of the stylistic/cosmetic options available with dygraphs, the color has been changed, the point shape has been changed to a square, and the stroke width has been made bigger using dyOptions().
+```{r, echo=FALSE}
+
+dygraph(seatbelts$DriversKilled, main='Drivers Killed')%>%
+  dyAxis('y',label='Number of drivers killed') %>%
+  dyAxis('x',label='Time', drawGrid = FALSE)%>%
+  dyHighlight(highlightSeriesBackgroundAlpha = 0.1,
+              hideOnMouseOut = TRUE)%>%
+  dyOptions(pointShape = 'square',
+            strokeWidth = 2,
+            colors = "hotpink")
+  
+
+  
+```
+
+### Candlestick example 
+  In this example, we add dyCandlestick() argument to a dygraphs function. This candlestick chart differs from normal time series plots because the data points for each date are not connected; instead, each point is represented by a vertical bar.\
+\
+Note: this function might be more suitable for a dataset where you want to compare 4 variables (for example, taking a look at the open, close, high, and low of a stock price).\
+ 
+```{r, echo=FALSE}
+seatbelts2<- cbind(seatbelts$DriversKilled, 
+                   seatbelts$front, 
+                   seatbelts$rear, 
+                   seatbelts$VanKilled)
+dygraph(seatbelts2,main='Seatbelts Candlestick Chart')%>%
+  dyAxis('y',label='Deaths or Serious Injuries') %>%
+  dyAxis('x',label='Time', drawGrid = FALSE)%>%
+  dyCandlestick() %>%
+  dyRangeSelector() %>%
+  dyEvent('1983-2-01', labelLoc = 'top', color='blue')
+```
+
+### Extra example: dyRibbon()
+To show how the the dyRibbon() function works, we've taken an altered version of the data (kms and DriversKilled*10) and compared them for the purposes of demonstration. dyRibbon allows the creator to give colored cues about the data. Here, where the kilometers exceeds DriversKilled, the ribbon is green; where DriversKilled exceeds kilometers, the ribbon is red. 
+```{r, echo=FALSE}
+difference <- seatbelts$kms -(100*seatbelts$DriversKilled)
+decreasing <- which(difference < 0)
+increasing <- which(difference > 0)
+
+dyData <- c(seatbelts$kms)
+
+ribbonData <- rep(0, nrow(dyData))
+ribbonData[decreasing] <- 0.1
+ribbonData[increasing] <- 1
+
+dygraph(dyData, main="Distance Driven") %>%
+  dyRibbon(data = ribbonData,top=.83,bottom=.5) %>%
+  dyAxis('y',label='Distance (km)') %>%
+  dyAxis('x',label='Time', drawGrid = FALSE)%>%
+  dyOptions(strokeWidth = 2, colors='navy')
+
+```
+
+## Similar Packages {.tabset}
+
+### GGPlot
+
+This package shares many similar features with others in the R space. One of which is ggplot2, which nearly everyone who uses R is familiar with.  While ggplot2 has excellent tools for adding customizations, colors, and more, the process can be difficult while adding on several “layers” to the plot.  Additionally, ggplot does not have the same functionality as dygraphs in terms of interactive features.  While one may be able to zoom in on various points with ggplot and plotly combined, this can be done singlehandedly with the dygraphs package. 
+\
+However, using the same dataset throughout our examples, GGPlot is extremely difficult to use with the Seatbelts data.  Even after coercing it to a time series, R does not recgonize the date index as a variable, so other packages such as lubridate and tidyverse are required in order to change the data to fit this use case.  However, our next example will demonstrate a similar package where the example is useable.  
+
+
+### Highcharter
+
+Dygraphs also has various similarities with highcharter.  Highcharter is comparable to dygraphs in that it was also created as an R interface from its Javascript charting library and has similar interactive features. It also has the simplicity that dygraphs does, as it only requires one line hchart() in order to create high-level visualizations. We can see in this example with the seatbelts dataset that this package can forecast values.  However, it isn’t possible to use bivariates in this case, so our visualization was only limited to data corresponding with the front seat, whereas our next examples will be able to include both the front and back seat in one graph.
+```{r}
+seatbelts=as.xts(Seatbelts)
+seatbeltforecast <- forecast(auto.arima(seatbelts$front), level = 95)
+hchart(seatbeltforecast)
+```
+
+
+
+## Reflection {.tabset}
+
+### Pros
+
+There are several upsides in using this package.  First off, the package can handle massive datasets, i.e. with millions of data points. This is ideal for keeping track of time series data, where something like a stock price is changing constantly. The functions themselves are also largely intuitive, which makes them easy to use without having much experience using the package; all functions in the package begin with ‘dy’ and clearly indicate what they’re used for, like dyCandlestick() making a candlestick chart or dyAxis() adding axis titles. Additionally, the graphs made through this package can be highly customizable to include various features that other packages do not have, as discussed earlier. This package is also extremely versatile in terms of having capabilities in multiple coding languages, not just R. One can utilize dygraphs in R, HTML, JavaScript, and stylize in CSS.  
+\
+In our opinion, the biggest strength of dygraphs is its simplicity and ease. Assuming you already have a time series set ready to go, the package enables a one-step process for creating a practical and interactive time series chart. Unlike using ggplot2, where you can’t get away with doing at least some cosmetic modifications, a dygraphs chart can get by on its own with a single line of code. 
+
+### Cons
+
+One initial downside of using dygraphs is the fact that the input to its functions must be in ‘xts’ format to work correctly. In other words, your data must be a time series. This can be tedious in the data preparation stage of using the package if you aren’t working with a dataset that is pre-labeled as an xts. If there was some way to incorporate a time-variable identifier into the function, that would allow the function to be used without as much prep.	
+\
+
+Another minor challenge of using dygraphs is getting acclimated with some of the syntax. For example, to add x and y axis labels, you need to put the axis in quotes and have each axis in separate functions. For example, what would be the 
+labs(y=’This is the name of my Y axis’, x=’This is the name of my X axis’) argument in ggplot would mean
+dyAxis('y', label=’This is the name of my Y axis') %>%
+ `dyAxis('x', label='This is the name of my X axis’) in dygraphs. This change is not difficult to work around, but the syntax seems unlike traditional R and ggplot2. 
+
+## Further References {.tabset}
+
+### Dygraph documentation
+
+* [General Documentation](https://dygraphs.com/)
+* [Github](https://rstudio.github.io/dygraphs/)
+* [Github Examples](https://github.com/rstudio/dygraphs)
+* [Full PDF Documentation](https://cran.r-project.org/web/packages/dygraphs/dygraphs.pdf)
+* [Interactive Time Series Information](https://blog.rstudio.com/2015/04/14/interactive-time-series-with-dygraphs/)
+* [Argument Details](https://www.rdocumentation.org/packages/dygraphs/versions/1.1.1.6/topics/dygraph)
+
+
+
+### Additional References
+
+* [History of Dygraphs](http://blog.dygraphs.com/2013/08/announcing-dygraphs-100.html)
+* [Similar Packages](https://mode.com/blog/r-data-visualization-packages/)
+* [Seatbelts Dataset Details](https://stat.ethz.ch/R-manual/R-patched/library/datasets/html/UKDriverDeaths.html)
+* [Hycharter Examples](https://jkunst.com/highcharter/)
+
